@@ -189,8 +189,11 @@ def to_ugm3(a, units):
     """Mass concentration to µg/m³ from whatever the GRIB says it is."""
     u = (units or "").replace(" ", "").lower()
     if u in ("kgm**-3", "kgm-3"): return a * 1e9
-    if u in ("µgm**-3", "ugm**-3", "µgm-3", "ugm-3", "~"): return a
-    raise SystemExit(f"unexpected units {units!r}")
+    if u in ("µgm**-3", "ugm**-3", "µgm-3", "ugm-3"): return a
+    # the European ensemble's GRIB says "unknown" (17 Oct 2026); its values are kg/m³ (PM2.5 median ~4e-9 = 4 µg/m³).
+    # Anything bigger than 1e-3 cannot be kg/m³ at the surface, so a change of unit stops the run instead of drawing it.
+    if u in ("unknown", "~") and np.nanmax(a) < 1e-3: return a * 1e9
+    raise SystemExit(f"unexpected units {units!r} (max {np.nanmax(a):.3g})")
 
 
 def sub_index(v, limits):
@@ -317,13 +320,13 @@ def main():
         grid = grid or g
         if (g["ni"], g["nj"]) != (grid["ni"], grid["nj"]):
             raise SystemExit(f"{k}: grid {g['ni']}x{g['nj']} differs from {grid['ni']}x{grid['nj']}")
-        if k in POLLEN and "m" not in (units or "~").replace("~", "m"):
-            raise SystemExit(f"{k}: unexpected pollen units {units!r}")
         data[k] = (fields, units)
         sample_v = fields[steps[0]]
         print(f"  {k}: {os.path.getsize(p) / 1e6:.1f} MB · units {units!r} · grid {g['ni']}x{g['nj']} from "
               f"{g['lat0']:.2f},{g['lon0']:.2f} step {g['dlat']:.3f}/{g['dlon']:.3f} · f{steps[0]:03d} "
               f"min {np.nanmin(sample_v):.3g} median {np.nanmedian(sample_v):.3g} max {np.nanmax(sample_v):.3g}", flush=True)
+        if k in POLLEN and max(float(np.nanmax(v)) for v in fields.values()) > 1e6:
+            raise SystemExit(f"{k}: pollen counts above 1e6 per m³ ({units!r}): not pollen/m³, stopping")
     print(f"  downloaded in {time.time() - t0:.0f} s", flush=True)
 
     def ugm3(key, fh):
