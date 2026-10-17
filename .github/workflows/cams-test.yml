@@ -1,0 +1,24 @@
+# A one-off Copernicus CAMS download test (cams_test.py). Started by hand only. The key comes from the ADS_KEY secret and is
+# written to the job's own ~/.cdsapirc; it is never printed.
+name: cams-test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "cdsapi>=0.7.7"
+      - name: Download
+        env:
+          ADS_KEY: ${{ secrets.ADS_KEY }}
+        run: |
+          printf 'url: https://ads.atmosphere.copernicus.eu/api\nkey: %s\n' "$ADS_KEY" > ~/.cdsapirc
+          chmod 600 ~/.cdsapirc
+          python cams_test.py
