@@ -1,0 +1,9 @@
+# Deploy: (cd cron-worker && wrangler deploy). Secret: wrangler secret put GH_TOKEN --name njw-weathermaps-cron.
+# Free plan. A GFS run's last file lands ~3 h 40 min after its hour: fire at :50 after, and again 30 minutes later.
+name = "njw-weathermaps-cron"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+[triggers]
+crons = ["50 3,9,15,21 * * *", "20 4,10,16,22 * * *"]

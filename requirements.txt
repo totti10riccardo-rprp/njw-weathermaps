@@ -1,0 +1,5 @@
+numpy==2.5.4
+eccodes==2.50.0
+eccodeslib==2.50.0.33
+pillow==13.0.0
+boto3==1.43.114

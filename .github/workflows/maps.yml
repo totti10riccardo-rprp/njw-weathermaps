@@ -1,0 +1,52 @@
+# Weather map tiles from NOAA GFS (rain with snow/mix, wind, temperature) plus a wind field, redrawn after each model run
+# and uploaded to Cloudflare R2 (bucket njw-maps, public at https://maps.notjustweather.com). render_gfs.py does the work.
+# Started by a Cloudflare cron (cron-worker/) at the forecast release times, or by hand. The first step asks, with nothing
+# installed, whether a newer run waits.
+# Security: secrets are R2_ENDPOINT and a storage key that can write ONLY the njw-maps bucket. Workflows started from forks
+# never receive secrets (GitHub's rule for public repositories), and this workflow runs only on workflow_dispatch.
+name: maps
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "GFS run YYYYMMDDHH (empty = the latest complete one)"
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: maps
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is there a new run?
+        id: check
+        env:
+          RUN_ARG: ${{ github.event.inputs.run }}
+        run: |
+          if [[ "$RUN_ARG" =~ ^[0-9]{10}$ ]]; then echo "draw=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          set +e; python3 render_gfs.py --check; rc=$?; set -e
+          if [ "$rc" -eq 0 ]; then echo "draw=1" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 3 ]; then echo "nothing new"
+          else exit "$rc"; fi
+      - if: steps.check.outputs.draw == '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - if: steps.check.outputs.draw == '1'
+        run: pip install -r requirements.txt
+      - if: steps.check.outputs.draw == '1'
+        name: Render and upload
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RUN_ARG: ${{ github.event.inputs.run }}
+        run: |
+          if [[ "$RUN_ARG" =~ ^[0-9]{10}$ ]]; then python render_gfs.py --upload --run "$RUN_ARG"
+          else python render_gfs.py --upload; fi
