@@ -20,5 +20,13 @@ for name, (ds, req) in jobs.items():
         print(f"{name}: OK, {os.path.getsize(p)} bytes ({ds}, {day})")
     except Exception as e:
         failed += 1
-        print(f"{name}: FAILED ({ds}): {str(e)[:800]}")
+        why = ""
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            try:
+                j = resp.json()
+                why = " | ".join(str(j.get(k)) for k in ("title", "detail", "traceback") if j.get(k))
+            except Exception:
+                why = resp.text[:800]
+        print(f"{name}: FAILED ({ds}): {str(e)[:300]} :: {why[:1200]}")
 raise SystemExit(1 if failed else 0)
