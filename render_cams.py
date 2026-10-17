@@ -71,10 +71,10 @@ MODEL_LEVEL = {"o3", "no2"}   # world: on model level 137 (the lowest)
 RAMPS = {
     "aqi": [(0, (80, 200, 230, 150)), (1, (80, 200, 170, 170)), (2, (240, 225, 70, 190)), (3, (245, 150, 50, 200)),
             (4, (220, 50, 60, 210)), (5, (150, 20, 80, 220)), (6, (110, 30, 120, 230))],
-    "pollen": [(-0.3, (230, 230, 120, 0)), (0, (230, 225, 110, 150)), (0.5, (245, 175, 60, 190)), (1, (230, 90, 50, 210)),
-               (2, (160, 30, 110, 225))],
+    "pollen": [(0, (230, 225, 110, 150)), (0.5, (245, 175, 60, 190)), (1, (230, 90, 50, 210)), (2, (160, 30, 110, 225))],
 }
-FLOOR = {"pollen": -0.3}
+# below the season threshold is transparent (no faint fringe: the map shows only what the thresholds call pollen season)
+FLOOR = {"pollen": 0.0}
 # pollen value grid: grey PNG on the model's own 0.1° grid, byte = round(log10(pollen/m³ + 1) × 50), 0 … 255
 POLLEN_GRID_SCALE = 50
 
@@ -339,7 +339,7 @@ def main():
 
     s3 = r2() if a.upload else None
     layers = ["aqi"] + (["pollen"] if region == "europe" else [])
-    tables = {"aqi": lut("aqi", 0, 6), "pollen": lut("pollen", -0.3, 2)}
+    tables = {"aqi": lut("aqi", 0, 6), "pollen": lut("pollen", 0, 2)}
     written = empty = bytes_out = grid_bytes = 0
     peaks = {}
 
