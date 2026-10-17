@@ -21,4 +21,13 @@ jobs:
         run: |
           printf 'url: https://ads.atmosphere.copernicus.eu/api\nkey: %s\n' "$ADS_KEY" > ~/.cdsapirc
           chmod 600 ~/.cdsapirc
-          python cams_test.py
+          python cams_test.py || true
+      - name: Copernicus's own answer (raw request; prints the reply, never the key)
+        env:
+          ADS_KEY: ${{ secrets.ADS_KEY }}
+        run: |
+          curl -s -o reply.json -w "HTTP %{http_code}\n" -X POST \
+            -H "PRIVATE-TOKEN: $ADS_KEY" -H "Content-Type: application/json" \
+            -d '{"inputs":{"variable":["particulate_matter_2.5um"],"date":["2026-10-16/2026-10-16"],"time":["00:00"],"leadtime_hour":["0"],"type":["forecast"],"data_format":"grib","area":[50,10,45,17]}}' \
+            https://ads.atmosphere.copernicus.eu/api/retrieve/v1/processes/cams-global-atmospheric-composition-forecasts/execution
+          head -c 1500 reply.json; echo
