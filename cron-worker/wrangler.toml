@@ -6,4 +6,5 @@ compatibility_date = "2026-10-01"
 workers_dev = false
 
 [triggers]
-crons = ["50 3,9,15,21 * * *", "20 4,10,16,22 * * *"]
+# CAMS (cams.yml): its 00 UTC runs are usually in by ~10 UTC; 13:30 retries; 22:30 takes the global 12 UTC run.
+crons = ["50 3,9,15,21 * * *", "20 4,10,16,22 * * *", "30 10,13,22 * * *"]
