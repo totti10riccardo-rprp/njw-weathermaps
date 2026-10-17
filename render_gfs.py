@@ -13,7 +13,7 @@ Tiles are 256 px Web Mercator (the {z}/{x}/{y} scheme MapKit's MKTileOverlay rea
 Temperature and wind are smooth fields and stop at zoom 3 (the app over-zooms); rain stops at zoom 4.
 
 Layout on R2 (bucket njw-maps, its own: the GitHub key can write only there; public at https://maps.notjustweather.com):
-  maps/gfs/<YYYYMMDDHH>/<layer>/<fh>/<z>/<x>/<y>.png     fh = forecast hour 003 … 048, every 3 hours
+  maps/gfs/<YYYYMMDDHH>/<layer>/<fh>/<z>/<x>/<y>.png     fh = forecast hour 001 … 048, every hour
   maps/gfs/latest.json                                   the manifest, written LAST, so it never names a run half uploaded
 Older runs than the previous one are deleted after the manifest moves (the pipeline's own output only).
 
@@ -33,7 +33,7 @@ BUCKET_URL = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 R2_BUCKET = "njw-maps"
 PREFIX = "maps/gfs"
 PUBLIC = "https://maps.notjustweather.com"
-STEPS = list(range(3, 49, 3))
+STEPS = list(range(1, 49))   # hourly to 48 h (18 Oct 2026; was 3-hourly while the job lived in a private repo's free minutes)
 MAXZ = {"rain": 4, "wind": 3, "temp": 3}
 FIELDS = {
     "temp": [":TMP:2 m above ground:"],

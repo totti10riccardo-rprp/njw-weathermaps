@@ -6,7 +6,7 @@ Bucket `njw-maps` (its own; the GitHub key can write only there), public at http
 ## 1. Forecast: rain, wind, temperature (ours, on R2)
 
 - **Manifest:** `https://maps.notjustweather.com/maps/gfs/latest.json` (5 minute cache). Read it first; it names the run,
-  the 16 steps (`fh` 3 … 48, every 3 hours, each with its `valid` time in UTC and its `key`), and per layer the tile
+  the 48 steps (`fh` 1 … 48, every hour since 18 Oct 2026; 3-hourly before), each with its `valid` time in UTC and its `key`), and per layer the tile
   template, zoom range, units and legend:
   `https://maps.notjustweather.com/maps/gfs/<run>/<layer>/<key>/{z}/{x}/{y}.png` with `<layer>` = `rain` | `wind` | `temp`.
   ⚠️ The template's `{fh}` is filled with the step's `key`, three digits (`"003"` … `"048"`), never the plain `fh` (3): a
