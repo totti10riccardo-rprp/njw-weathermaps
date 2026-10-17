@@ -90,7 +90,7 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
   (5 minute cache), same shape as GFS's: `run`, `steps[]` (`fh`, `key`, `valid`), `layers.<name>.url` with `{fh}` = `key`.
   The app draws Europe over the world (Europe tiles are transparent outside its domain, and missing outside it).
 - **Europe** (`cams-europe-air-quality-forecasts`, the ensemble of the regional models, 0.1°, domain 25° W – 45° E,
-  30 – 72° N): the 00 UTC run, every hour 0 … 48 h. Layers `aqi` and `pollen`, z0–5. Plus `layers.pollen.grids`: one grey
+  30 – 72° N): the 00 UTC run, every hour 0 … 48 h. Layers `aqi` and `pollen`, z0–4 (the app draws z4 larger beyond). Plus `layers.pollen.grids`: one grey
   PNG per species and hour on the model's own grid (alder, birch, grass, mugwort, olive, ragweed), byte → pollen/m³ with
   the manifest's `decode` line, for the numbers and the species at a place.
 - **World** (`cams-global-atmospheric-composition-forecasts`, 0.4°): the 00 and 12 UTC runs, every 3 hours 0 … 48 h.
@@ -101,19 +101,23 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
   PM2.5 0-5 · 6-15 · 16-50 · 51-90 · 91-140 · >140; PM10 0-15 · 16-45 · 46-120 · 121-195 · 196-270 · >270;
   O3 0-60 · 61-100 · 101-120 · 121-160 · 161-180 · >180; NO2 0-10 · 11-25 · 26-60 · 61-100 · 101-150 · >150 =
   Good · Fair · Moderate · Poor · Very poor · Extremely poor. Each cell takes the worst pollutant. The tile value is the band
-  (0 … 5) plus how far into the band the worst pollutant is, so `floor(value)` is the band (`layers.aqi.bands`).
+  (0 … 5) plus how far into the band the worst pollutant is; the tiles draw it STEPPED (`legendMode: "step"`), each band one
+  flat EEA colour: Good #50F0E6, Fair #50CCAA, Moderate #F0E641, Poor #FF5050, Very poor #960032, Extremely poor #7D2181
+  (the alpha byte is the app's: lighter for clean air).
   ⚠️ Over stormy oceans the global model's PM10 includes sea salt, so Fair to Moderate there is the model, not a fault.
 - **`pollen`** = the highest level among the six species. Level 0 = the pollen-season threshold, 1 = the peak threshold,
   log scale between: alder, birch, olive, mugwort 10 and 100 pollen/m³; grass, ragweed 3 and 50 (EAACI, Pfaar et al. 2017,
   https://doi.org/10.1111/all.13092, and 2020, https://doi.org/10.1111/all.14111, as cited by the EEA's Climate-ADAPT page
   "CAMS ground level pollen forecast"). Below the season threshold is transparent, and an empty tile is not written.
+  Colours are continuous between the legend's stops (`legendMode: "linear"`).
 - **Licence:** CAMS data licence (CC-BY 4.0 based), accepted on the ADS account 17 Oct 2026. The manifests' `attribution`
   must be shown on the map, visibly: "Contains modified Copernicus Atmosphere Monitoring Service information <year>.
   Neither the European Commission nor ECMWF is responsible for any use that may be made of the information it contains."
 - **Refresh:** `cams.yml`, started by the Cloudflare cron at 10:30, 13:30 and 22:30 UTC; each region checks its own
   manifest and asks the ADS for the run's last hour before drawing ("not yet" is green; still missing 16 h after its hour is
-  red). Palettes are PROVISIONAL until the app sends its exact stops. Public repo: $0 GitHub minutes. R2 writes ≈ 10 k a day
-  for Europe and ≈ 3 k for the world (≈ 0.4 M a month, ≈ $1.8).
+  red). Palettes are the app's exact stops (left, 18 Oct 2026). Public repo: $0 GitHub minutes. R2 writes ≈ 4 k a day for
+  Europe in pollen season (36 tiles per layer and hour at z0–4, plus the grids) and ≈ 3 k for the world (≈ 0.2 M a month,
+  ≈ $1).
 
 ## 6. Points
 

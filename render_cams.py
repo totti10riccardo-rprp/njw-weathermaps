@@ -15,13 +15,13 @@ Free source, CC-BY: the Copernicus Atmosphere Monitoring Service, read through t
 The index (the EEA's revised bands, hourly concentrations, µg/m³; ETC HE Report 2024/17, executive summary table):
   PM2.5  0-5 6-15 16-50 51-90 91-140 >140 · PM10 0-15 16-45 46-120 121-195 196-270 >270
   O3     0-60 61-100 101-120 121-160 161-180 >180 · NO2 0-10 11-25 26-60 61-100 101-150 >150
-  Good · Fair · Moderate · Poor · Very poor · Extremely poor = 0 … 5. The tiles draw a continuous value (the band plus how
-  far into it the worst pollutant is), so band edges sit exactly at the EEA limits and the map is smooth in between.
+  Good · Fair · Moderate · Poor · Very poor · Extremely poor = 0 … 5. The value is the band plus how far into it the worst
+  pollutant is; the tiles draw it stepped (each band one flat EEA colour), so band edges sit exactly at the EEA limits.
 Pollen levels (EAACI, Pfaar et al. 2017; 2020, as the EEA's Climate-ADAPT page for the CAMS pollen forecast cites them):
   alder, birch, olive, mugwort: season from 10 pollen/m³, peak from 100 · grass, ragweed: season from 3, peak from 50.
   Level 0 = the season threshold, 1 = the peak threshold, log scale between (so 2 = as far again above the peak).
 
-Tiles are 256 px Web Mercator {z}/{x}/{y}, bilinear from the model grid. Europe z0–5, world z0–3. Outside the European
+Tiles are 256 px Web Mercator {z}/{x}/{y}, bilinear from the model grid. Europe z0–4 (the app draws z4 larger beyond), world z0–3. Outside the European
 domain a Europe tile is transparent, and an all-transparent tile is not written (the app draws Europe over the world).
 
 Layout on R2 (bucket njw-maps, public at https://maps.notjustweather.com):
@@ -43,7 +43,7 @@ np = Image = eccodes = None   # loaded in main() after --check's quick answer
 R2_BUCKET = "njw-maps"
 PUBLIC = "https://maps.notjustweather.com"
 REGIONS = {
-    "europe": {"dataset": "cams-europe-air-quality-forecasts", "runs": (0,), "ready_after_h": 10, "maxz": 5,
+    "europe": {"dataset": "cams-europe-air-quality-forecasts", "runs": (0,), "ready_after_h": 10, "maxz": 4,
                "steps": list(range(0, 49)), "model": "CAMS European ensemble 0.1°"},
     "world": {"dataset": "cams-global-atmospheric-composition-forecasts", "runs": (0, 12), "ready_after_h": 10, "maxz": 3,
               "steps": list(range(0, 49, 3)), "model": "CAMS global 0.4°"},
@@ -65,14 +65,16 @@ VARS = {
 }
 MODEL_LEVEL = {"o3", "no2"}   # world: on model level 137 (the lowest)
 
-# Colour ramps (value, (r, g, b, a)), linear between stops. PROVISIONAL until the app sends its exact stops; the
-# manifest's legends are these stops, so the app's linear blend reproduces the tiles either way.
-# aqi: 0 … 6 (the band index plus the position inside it); pollen: the level (0 = season, 1 = peak).
-RAMPS = {
-    "aqi": [(0, (80, 200, 230, 150)), (1, (80, 200, 170, 170)), (2, (240, 225, 70, 190)), (3, (245, 150, 50, 200)),
-            (4, (220, 50, 60, 210)), (5, (150, 20, 80, 220)), (6, (110, 30, 120, 230))],
-    "pollen": [(0, (230, 225, 110, 150)), (0.5, (245, 175, 60, 190)), (1, (230, 90, 50, 210)), (2, (160, 30, 110, 225))],
+# Colour stops (value, #rrggbbaa), the app's exact legends (left, 18 Oct 2026); the manifest's legends are these strings.
+# aqi: the EEA's own band colours (Good #50F0E6 … Extremely poor #7D2181), drawn STEPPED: each pixel takes its band's
+# colour (floor of the value), so the map matches the EEA scale. pollen: the level (0 = season, 1 = peak), linear.
+LEGENDS = {
+    "aqi": [[0, "#50f0e68c"], [1, "#50ccaaa0"], [2, "#f0e641b4"], [3, "#ff5050c8"], [4, "#960032d7"], [5, "#7d2181e6"],
+            [6, "#7d2181e6"]],
+    "pollen": [[0, "#c8e65a8c"], [0.5, "#f0d23cb4"], [1, "#f08c28c8"], [2, "#c8285adc"]],
 }
+RAMPS = {l: [(v, tuple(int(h[i:i + 2], 16) for i in (1, 3, 5, 7))) for v, h in st] for l, st in LEGENDS.items()}
+STEPPED = {"aqi": 5}   # layer: the top band (a pixel is floor(min(value, top)))
 # below the season threshold is transparent (no faint fringe: the map shows only what the thresholds call pollen season)
 FLOOR = {"pollen": 0.0}
 # pollen value grid: grey PNG on the model's own 0.1° grid, byte = round(log10(pollen/m³ + 1) × 50), 0 … 255
@@ -246,7 +248,7 @@ def tile_range(g, z):
     return [(x, y) for x in range(tx(g["lon0"]), tx(lon1) + 1) for y in range(ty(g["lat0"]), ty(g["lat1"]) + 1)]
 
 
-def lut(layer, lo, hi, n=2048):
+def lut(layer, lo, hi, n=2041):   # 2040 steps: every stop (whole and half values over 0 … 6 or 0 … 2) lands on an entry
     stops = RAMPS[layer]
     xs = np.linspace(lo, hi, n)
     vs = np.array([s[0] for s in stops], float); cs = np.array([s[1] for s in stops], float)
@@ -256,6 +258,8 @@ def lut(layer, lo, hi, n=2048):
 def tile_png(layer, grid, g, z, x, y, table):
     xs, colours = table
     v = sample(grid, g, z, x, y)
+    if layer in STEPPED:
+        v = np.floor(np.minimum(v, STEPPED[layer]))
     nan = np.isnan(v)
     floor = FLOOR.get(layer)
     if nan.all() or (floor is not None and not (v[~nan] > floor).any()):
@@ -374,7 +378,7 @@ def main():
             print(f"  f{fh:03d} · {written} tiles · {empty} empty · {bytes_out / 1e6:.1f} MB · grids {grid_bytes / 1e6:.1f} MB · "
                   + " ".join(f"{l} max {v:.2f}" for l, v in peaks[fh].items()) + f" · {time.time() - t0:.0f} s", flush=True)
 
-    def legend(l): return [[v, "#%02x%02x%02x%02x" % c] for v, c in RAMPS[l]]
+    def legend(l): return LEGENDS[l]
     manifest = {
         "model": cfg["model"], "source": cfg["dataset"], "attribution": attribution(run_t.year),
         "run": run_t.isoformat().replace("+00:00", "Z"),
@@ -383,7 +387,7 @@ def main():
                   for fh in steps],
         "layers": {
             "aqi": {"url": f"{PUBLIC}/{prefix}/{run}/aqi/{{fh}}/{{z}}/{{x}}/{{y}}.png", "minZoom": 0, "maxZoom": cfg["maxz"],
-                    "units": "European Air Quality Index (0 = Good … 6)", "legend": legend("aqi"),
+                    "units": "European Air Quality Index (0 = Good … 6)", "legend": legend("aqi"), "legendMode": "step",
                     "bands": [{"from": i, "to": i + 1, "name": n} for i, n in enumerate(EAQI_NAMES)],
                     "limits_ugm3": EAQI, "standard": "EEA European Air Quality Index, revised bands (ETC HE Report 2024/17), hourly",
                     **({"missingTileMeans": "outside the European domain"} if region == "europe" else {})},
@@ -394,7 +398,7 @@ def main():
         manifest["layers"]["pollen"] = {
             "url": f"{PUBLIC}/{prefix}/{run}/pollen/{{fh}}/{{z}}/{{x}}/{{y}}.png", "minZoom": 0, "maxZoom": cfg["maxz"],
             "units": "pollen level of the highest species: 0 = season threshold, 1 = peak threshold (log scale)",
-            "legend": legend("pollen"), "missingTileMeans": "below the pollen-season threshold, or outside the European domain",
+            "legend": legend("pollen"), "legendMode": "linear", "missingTileMeans": "below the pollen-season threshold, or outside the European domain",
             "thresholds": {s: {"season": se, "peak": pk} for s, (se, pk) in POLLEN.items()},
             "standard": "EAACI pollen season and peak thresholds (Pfaar et al. 2017; 2020), pollen/m³",
             "grids": {"url": f"{PUBLIC}/{prefix}/{run}/pollengrid/{{species}}/{{fh}}.png", "species": list(POLLEN),
