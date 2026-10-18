@@ -48,6 +48,8 @@ REGIONS = {
     "world": {"dataset": "cams-global-atmospheric-composition-forecasts", "runs": (0, 12), "ready_after_h": 10, "maxz": 3,
               "steps": list(range(0, 49, 3)), "model": "CAMS global 0.4°"},
 }
+# ADS requests in flight at once, per region (the regions run one after the other: cams.yml max-parallel 1)
+ADS_PARALLEL = 4
 # A run not ready this long after its hour is a fault (red), not "not yet" (green).
 LATE_H = 16
 
@@ -166,13 +168,15 @@ def download(region, key, run, steps, folder):
     import cdsapi
     ds, req = request(region, key, run, steps)
     p = os.path.join(folder, f"{key}.grib")
-    for i in range(3):
+    # the ADS rejects a job outright when the account has too many queued ("Number queued requests ... exceeded"):
+    # waiting longer lets the queue drain (18 Oct 2026: two regions × 5 at once was rejected 30 times)
+    for i in range(5):
         try:
             cdsapi.Client(quiet=True, progress=False).retrieve(ds, req).download(p)
             return key, p
         except Exception as e:
             print(f"  {key}: attempt {i + 1} failed: {str(e)[:200]}", flush=True)
-            time.sleep(30 * (i + 1))
+            time.sleep(60 * (i + 1))
     raise SystemExit(f"{key}: download failed")
 
 
@@ -330,7 +334,7 @@ def main():
     print(f"CAMS {region} run {run} · steps {steps[0]}…{steps[-1]} ({len(steps)})", flush=True)
     t0 = time.time()
     folder = tempfile.mkdtemp(prefix=f"cams-{region}-")
-    with ThreadPoolExecutor(5) as pool:
+    with ThreadPoolExecutor(ADS_PARALLEL) as pool:
         files = dict(pool.map(lambda k: download(region, k, run, steps, folder), VARS[region]))
     data, grid = {}, None
     for k, p in files.items():
