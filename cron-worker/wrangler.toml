@@ -7,4 +7,5 @@ workers_dev = false
 
 [triggers]
 # CAMS (cams.yml): its 00 UTC runs are usually in by ~10 UTC; 13:30 retries; 22:30 takes the global 12 UTC run.
-crons = ["50 3,9,15,21 * * *", "20 4,10,16,22 * * *", "30 10,13,22 * * *"]
+# Radar (radar-at.yml + radar-nordic.yml): every 15 minutes, just after GeoSphere/SMHI/DMI publish. 4 crons in all (free plan: 5).
+crons = ["50 3,9,15,21 * * *", "20 4,10,16,22 * * *", "30 10,13,22 * * *", "4,19,34,49 * * * *"]
