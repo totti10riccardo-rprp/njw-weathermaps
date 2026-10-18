@@ -32,6 +32,7 @@ const SOURCES = {
   "dwd-radar": wms("https://maps.dwd.de/geoserver/dwd/wms", "dwd:Niederschlagsradar", 300),
   "eccc-radar": wms("https://geo.weather.gc.ca/geomet", "RADAR_1KM_RRAI", 360),
   "knmi-radar": wms("https://geoservices.knmi.nl/wms", "RAD_NL25_PCP_CM", 300, { dataset: "RADAR", transparent: "true" }),
+  "fmi-radar": wms("https://openwms.fmi.fi/geoserver/wms", "Radar:suomi_dbz_eureffin", 300),
   "noaa-nhc": {
     kind: "arcgis", base: "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather/MapServer/export",
     ttl: 600, timeParam: null,
@@ -147,6 +148,7 @@ for (const r of ["conus", "alaska", "hawaii", "carib", "guam"]) {
 FRAME_SOURCES["dwd-radar"] = { url: "https://maps.dwd.de/geoserver/dwd/Niederschlagsradar/ows", layer: "Niederschlagsradar", params: {} };
 FRAME_SOURCES["eccc-radar"] = { url: "https://geo.weather.gc.ca/geomet", layer: "RADAR_1KM_RRAI", params: { layer: "RADAR_1KM_RRAI" } };
 FRAME_SOURCES["knmi-radar"] = { url: "https://geoservices.knmi.nl/wms", layer: "RAD_NL25_PCP_CM", params: { dataset: "RADAR" } };
+FRAME_SOURCES["fmi-radar"] = { url: "https://openwms.fmi.fi/geoserver/Radar/suomi_dbz_eureffin/ows", layer: "suomi_dbz_eureffin", params: {} }; // the layer's own capabilities: 8 kB, not the server's 428 kB
 
 const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z"); // no milliseconds: the form /gov tiles accept
 function periodMs(p) {

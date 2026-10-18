@@ -63,6 +63,13 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
 - **Netherlands** (KNMI precipitation radar), every 5 minutes, keyless; capabilities say "Fees: no conditions apply",
   "AccessConstraints: None". Credit "KNMI" (KNMI's own wording not confirmed):
   `https://geoservices.knmi.nl/wms?dataset=RADAR&service=WMS&version=1.3.0&request=GetMap&layers=RAD_NL25_PCP_CM&styles=&crs=EPSG:3857&bbox={bbox}&width=256&height=256&format=image/png&transparent=true`
+- **Finland** (FMI radar composite, reflectivity dBZ, layer `Radar:suomi_dbz_eureffin`), every 5 minutes, a week of history in the
+  time dimension (`&time=`, PT5M), coverage lon 15-35 / lat 56.8-71.3 (Finland and surroundings), keyless; capabilities "Fees: NONE,
+  AccessConstraints: NONE". Licence: CC BY 4.0 - "The Creative Commons Attribution 4.0 International license (CC BY 4.0) shall be used
+  by the Finnish Meteorological Institute's open data service" (https://en.ilmatieteenlaitos.fi/open-data-licence). Credit:
+  "Contains data from the Finnish Meteorological Institute (CC BY 4.0)" (wording ours; the licence asks for appropriate credit and a licence link):
+  `https://openwms.fmi.fi/geoserver/wms?service=WMS&version=1.3.0&request=GetMap&layers=Radar:suomi_dbz_eureffin&styles=&crs=EPSG:3857&bbox={bbox}&width=256&height=256&format=image/png&transparent=true`
+- **Not added (18 Oct 2026):** Austria GeoSphere (CC BY 4.0, "© GeoSphere Austria"): INCA/nowcast 15 min, 1 km, only as NetCDF/GeoJSON via dataset.api.hub.geosphere.at, no WMS found, we would have to render it. Denmark DMI (CC BY 4.0, opendataapi.dmi.dk/v1/radardata, composite every 5 min): HDF5 files only, no WMS (the answer was keyless on 18 Oct, older docs say key). Sweden SMHI (opendata-download-radar.smhi.se): h5/png/tif files, no WMS. Belgium RMI has radar WMS at opendata.meteo.be/geoserver/wms (radar:belgian_rainfall_composite), not researched.
 - Canada and the Netherlands each answered a real 256 px request with drawn rain and no key (17 Oct 2026 ~14:45 UTC).
 - ⚠️ Direct requests send the viewed area and the phone's IP address to NOAA, DWD, ECCC, KNMI and NASA. A Cloudflare proxy would hide that
   (not built; free up to 100,000 requests a day).

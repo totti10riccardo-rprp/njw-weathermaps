@@ -1,6 +1,6 @@
 # njw-gov-proxy
 
-Cloudflare Worker on `maps.notjustweather.com/gov/*` (the only route; `/maps/*` is never touched). The app asks only our server for government map layers; NOAA, DWD, ECCC and KNMI see Cloudflare, not the phone.
+Cloudflare Worker on `maps.notjustweather.com/gov/*` (the only route; `/maps/*` is never touched). The app asks only our server for government map layers; NOAA, DWD, ECCC, KNMI and FMI see Cloudflare, not the phone.
 Deploy (by hand): `(cd gov-proxy-worker && wrangler deploy)`. Local test: `wrangler dev --local --port 8799 --var DEBUG_UPSTREAM:1`.
 
 ## URL map and TTLs
@@ -12,6 +12,7 @@ The client sends only `bbox` (EPSG:3857 metres `minX,minY,maxX,maxY`) plus `widt
 | `/gov/dwd-radar` | maps.dwd.de/geoserver/dwd/wms, dwd:Niederschlagsradar | 300 s | SOURCES.md: every 5 min |
 | `/gov/eccc-radar` | geo.weather.gc.ca/geomet, RADAR_1KM_RRAI | 360 s | SOURCES.md: every 6 min |
 | `/gov/knmi-radar` | geoservices.knmi.nl/wms?dataset=RADAR, RAD_NL25_PCP_CM | 300 s | SOURCES.md: every 5 min |
+| `/gov/fmi-radar` | openwms.fmi.fi/geoserver/wms, Radar:suomi_dbz_eureffin (Finland, dBZ) | 300 s | SOURCES.md s3: every 5 min |
 | `/gov/noaa-nhc` | mapservices.weather.noaa.gov/.../NHC_tropical_weather/MapServer/export (the layers list from SOURCES.md s4) | 600 s | advisories every 3-6 h; 10 min is a safe margin (chosen, not a documented interval) |
 | `/gov/noaa-airquality/{pm25,ozone}` | mapservices.weather.noaa.gov/raster/.../ndgd_apm25_hr01 and ndgd_ozone_8hr_avg_time /ImageServer/exportImage | 1800 s | two model runs a day, hourly maps (SOURCES.md s5) |
 | `/gov/nasa-goes-east/{z}/{y}/{x}.png`, `/gov/nasa-goes-west/{z}/{y}/{x}.png` | gibs.earthdata.nasa.gov GOES-East/West ABI Band 13 infrared, `default` (newest), Level6 | 600 s | every 10 min (SOURCES.md s2); zoom 0-6, row before column, no query string |
@@ -24,6 +25,7 @@ The client sends only `bbox` (EPSG:3857 metres `minX,minY,maxX,maxY`) plus `widt
 - `.../gov/dwd-radar?bbox=1113194,6446275,1565430,6800125&width=256&height=256`
 - `.../gov/eccc-radar?bbox=-10018754,5009377,-9392582,5635549&width=256&height=256&time=2026-10-18T12:00:00Z`
 - `.../gov/knmi-radar?bbox=445277,6800125,556597,6911445&width=256&height=256`
+- `.../gov/fmi-radar?bbox=2504688,8400000,3130860,9000000&width=256&height=256`
 - `.../gov/noaa-nhc?bbox=-10018754,5009377,-9392582,5635549&size=256,256`
 - `.../gov/noaa-airquality/pm25?bbox=-10018754,5009377,-9392582,5635549&size=256,256&time=1792300000000`
 
@@ -46,7 +48,7 @@ For the Radar slider. No parameters (any query string gives 404). Cached 120 s. 
 ```
 {"generated":"2026-10-18T00:46:30Z","sources":{"noaa-radar/conus":{"times":["2026-10-17T22:47:59Z", ... ,"2026-10-18T00:43:52Z"],"step_s":120},
  "noaa-radar/alaska":{...},"noaa-radar/hawaii":{...},"noaa-radar/carib":{...},"noaa-radar/guam":{...},
- "dwd-radar":{"times":[...],"step_s":300},"eccc-radar":{...,"step_s":360},"knmi-radar":{...,"step_s":300}}}
+ "dwd-radar":{"times":[...],"step_s":300},"eccc-radar":{...,"step_s":360},"knmi-radar":{...,"step_s":300},"fmi-radar":{...,"step_s":300}}}
 ```
 - `times`: oldest first, the frames from the last 2 h up to now (future nowcast frames, e.g. DWD's, are left out); if none are in the window, just the newest past frame. All in `YYYY-MM-DDTHH:MM:SSZ` (milliseconds dropped), which is exactly what the tile endpoint takes: `.../gov/dwd-radar?bbox=...&width=256&height=256&time=2026-10-18T00:45:00Z`.
 - `step_s`: median gap between frames (NOAA's frames are irregular, about 2 min).
