@@ -110,6 +110,10 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
 - **Norway** (not added, 18 Oct 2026): api.met.no radar 2.0 says "There is no usage restrictions on any of the radar images",
   but it serves only PNG/GIF pictures in a Lambert conformal projection whose parameters and extent are not published, so
   they cannot be placed on the map without guessing.
+- **Ireland** and **Poland** (not added, 18 Oct 2026): both publish ODIM HDF5 radar files, but not live. Met Éireann
+  (CC BY 4.0, https://opendata2.met.ie/radar/latest/): at 09:40 UTC the newest file was from 23:50 UTC the night before
+  (published in a morning batch). IMGW (danepubliczne.imgw.pl, product COMPO_CMAX_250.comp.cmax): at 09:40 UTC the newest
+  file was stamped 04:25, and it is column-maximum reflectivity, not rain near the ground.
 
 ## 4. Hurricanes and tropical storms (NOAA NHC, straight from NOAA)
 
