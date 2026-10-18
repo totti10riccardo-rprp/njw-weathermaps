@@ -2,6 +2,8 @@
 // every upstream is a named entry below; the client supplies ONLY bbox, width/height (or size), time.
 // Everything else (service, layers, crs, format ...) is fixed here and the upstream query is rebuilt from scratch.
 
+import { RULES, clearPalette } from "./clear.js";
+
 const UA = "njw-maps-proxy (+https://notjustweather.com)";
 const NEG_TTL = 60;
 const TIMEOUT_MS = 10000;
@@ -11,9 +13,9 @@ const MAX_BBOX = 21000000; // a bit over the EPSG:3857 world extent (20037508)
 const NHC_LAYERS =
   "show:6,7,8,9,32,33,34,35,58,59,60,61,84,85,86,87,110,111,112,113,136,137,138,139,162,163,164,165,188,189,190,191,214,215,216,217,240,241,242,243,266,267,268,269,292,293,294,295,318,319,320,321,344,345,346,347,370,371,372,373";
 
-function wms(base, layer, ttl, extra = {}) {
+function wms(base, layer, ttl, extra = {}, clear = null) {
   return {
-    kind: "wms", base, ttl, timeParam: "iso",
+    kind: "wms", base, ttl, timeParam: "iso", clear,
     fixed: { service: "WMS", version: "1.3.0", request: "GetMap", layers: layer, styles: "", crs: "EPSG:3857", format: "image/png", transparent: "true", ...extra },
   };
 }
@@ -29,11 +31,14 @@ const SOURCES = {
   "noaa-radar/hawaii": noaaRadar("hawaii"),
   "noaa-radar/carib": noaaRadar("carib"),
   "noaa-radar/guam": noaaRadar("guam"),
-  "dwd-radar": wms("https://maps.dwd.de/geoserver/dwd/wms", "dwd:Niederschlagsradar", 300),
+  // Only precipitation shows (clear.js): DWD, FMI and RMI paint no-data grey (DWD also a coverage outline), so they come as
+  // paletted PNGs and those palette entries are made transparent. KNMI's default style draws the rain itself in white and
+  // grey, so it uses KNMI's own coloured "Precipitation mm/hour" style, which draws nothing where there is no rain.
+  "dwd-radar": wms("https://maps.dwd.de/geoserver/dwd/wms", "dwd:Niederschlagsradar", 300, { format: "image/png8" }, RULES.dwd),
   "eccc-radar": wms("https://geo.weather.gc.ca/geomet", "RADAR_1KM_RRAI", 360),
-  "knmi-radar": wms("https://geoservices.knmi.nl/wms", "RAD_NL25_PCP_CM", 300, { dataset: "RADAR", transparent: "true" }),
-  "fmi-radar": wms("https://openwms.fmi.fi/geoserver/wms", "Radar:suomi_dbz_eureffin", 300),
-  "rmi-radar": wms("https://opendata.meteo.be/geoserver/wms", "radar:belgian_rainfall_composite", 300),
+  "knmi-radar": wms("https://geoservices.knmi.nl/wms", "RAD_NL25_PCP_CM", 300, { dataset: "RADAR", transparent: "true", styles: "precipitation_mm_extranetten_v1" }),
+  "fmi-radar": wms("https://openwms.fmi.fi/geoserver/wms", "Radar:suomi_dbz_eureffin", 300, { format: "image/png8" }, RULES.greyIsNoData),
+  "rmi-radar": wms("https://opendata.meteo.be/geoserver/wms", "radar:belgian_rainfall_composite", 300, { format: "image/png8" }, RULES.greyIsNoData),
   "noaa-nhc": {
     kind: "arcgis", base: "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather/MapServer/export",
     ttl: 600, timeParam: null,
@@ -281,7 +286,13 @@ export default {
     if (up.status === 200) {
       const ct = (up.headers.get("Content-Type") || "").toLowerCase();
       if (!ct.startsWith("image/")) return badGateway(); // WMS/ArcGIS errors often arrive as 200 + XML/JSON
-      resp = reply(200, up.body, { "Content-Type": ct, "Cache-Control": `public, max-age=${src.ttl}` });
+      let body = up.body, type = ct;
+      if (src.clear) {
+        const done = clearPalette(await up.arrayBuffer(), src.clear);
+        if (done) { body = done.png; type = "image/png"; }
+        else return badGateway(); // asked for a paletted PNG and got something else: never show unfiltered grey
+      }
+      resp = reply(200, body, { "Content-Type": type, "Cache-Control": `public, max-age=${src.ttl}` });
     } else if (up.status === 404) {
       resp = reply(404, "Not found", { "Content-Type": "text/plain", "Cache-Control": `public, max-age=${NEG_TTL}` });
     } else {

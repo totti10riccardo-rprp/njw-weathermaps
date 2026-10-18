@@ -19,6 +19,8 @@ The client sends only `bbox` (EPSG:3857 metres `minX,minY,maxX,maxY`) plus `widt
 | `/gov/nasa-goes-east/{z}/{y}/{x}.png`, `/gov/nasa-goes-west/{z}/{y}/{x}.png` | gibs.earthdata.nasa.gov GOES-East/West ABI Band 13 infrared, `default` (newest), Level6 | 600 s | every 10 min (SOURCES.md s2); zoom 0-6, row before column, no query string |
 | `/gov/nasa-viirs/{YYYY-MM-DD}/{z}/{y}/{x}.jpg` | GIBS VIIRS NOAA-20 true colour, Level9 | 86400 s | one dated picture per day never changes; zoom 0-9; a date in the last 31 days (use yesterday) |
 
+**Only precipitation is drawn (18 Oct 2026, `src/clear.js`).** DWD, FMI and RMI paint the area outside their radars' range grey ("no data"; DWD also a magenta coverage outline), so the Worker asks them for a paletted PNG (`format=image/png8`) and sets alpha 0 on every palette entry that is not precipitation: for DWD everything except its 15 legend rain colours, for FMI and RMI every light grey/white entry (neither draws rain in grey). Pixels are never decoded (~0.2 ms a tile), so it holds at every bbox size; a reply that is not a paletted PNG gives 502 rather than an unfiltered picture. KNMI's default style draws the rain itself in white and grey, so it uses KNMI's coloured `precipitation_mm_extranetten_v1` ("Precipitation mm/hour"), which draws nothing where it is dry; its lightest rain is near-white at 3-9% opacity. ECCC and NOAA already draw nothing outside rain.
+
 `time`: radar layers take an ISO instant `2026-10-18T12:00:00Z` (optional); air quality requires epoch milliseconds (12-13 digits).
 
 ## Example requests (one tile each, a tile box over the US Midwest / Europe)
