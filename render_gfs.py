@@ -11,9 +11,11 @@ the .idx), so a run costs ~60 MB of download, not the full 500 MB files.
 
 Tiles are 256 px Web Mercator (the {z}/{x}/{y} scheme MapKit's MKTileOverlay reads), bilinear from the 0.25 degree grid.
 Temperature and wind are smooth fields and stop at zoom 3 (the app over-zooms); rain stops at zoom 4.
+Beside the tiles, data for the app to draw itself: the wind FIELD (1°, u/v) and the temperature and rain GRIDS (0.5°).
 
 Layout on R2 (bucket njw-maps, its own: the GitHub key can write only there; public at https://maps.notjustweather.com):
   maps/gfs/<YYYYMMDDHH>/<layer>/<fh>/<z>/<x>/<y>.png     fh = forecast hour 001 … 048, every hour
+  maps/gfs/<YYYYMMDDHH>/windfield/<fh>.png, grid/<temp|rain>/<fh>.png   (see FIELD and GRID below)
   maps/gfs/latest.json                                   the manifest, written LAST, so it never names a run half uploaded
 Older runs than the previous one are deleted after the manifest moves (the pipeline's own output only).
 
@@ -172,6 +174,31 @@ def wind_field_png(u, v):
     return buf.getvalue()
 
 
+# The data GRIDS, for the app to draw temperature and rain itself (18 Oct 2026): one PNG per layer and step, 0.5°
+# equirectangular, 720 × 361 px, x = lon -180 … 179.5, y = lat 90 … -90 (row 0 = 90 N), point samples of the 0.25° grid.
+#   temp  grey: byte = round((°C + 64) × 2), clamped; °C = byte / 2 - 64 (0.5 °C steps, -64 … +63.5)
+#   rain  RGB: R = 0 under 0.1 mm/h (dry), else round(log10(mm/h + 1) × 100), at least 1; mm/h = 10 ^ (R / 100) - 1
+#         G = the snow share, B = the mix share (0 … 255; rain = the rest), both 0 where R is 0
+GRID = {"width": 720, "height": 361, "lon0": -180, "lat0": 90, "step": 0.5}
+GRID_DECODE = {"temp": "grey PNG: °C = byte / 2 - 64",
+               "rain": "RGB PNG: R = 0 dry (under 0.1 mm/h), else mm/h = 10 ^ (R / 100) - 1; G = snow share, B = mix share "
+                       "(of 255; rain is the rest)"}
+
+
+def grid_png(layer, value, ptype=None):
+    cols = (np.arange(-360, 360) % 720) * 2                  # lon -180 … 179.5 → the 0.25° columns
+    rows = np.arange(0, 721, 2)                              # lat 90 … -90
+    v = value[np.ix_(rows, cols)]
+    if layer == "temp":
+        img = Image.fromarray(np.clip(np.rint((v + 64) * 2), 0, 255).astype(np.uint8), "L")
+    else:
+        r = np.where(v < FLOOR["rain"], 0, np.clip(np.rint(np.log10(np.maximum(v, 0) + 1) * 100), 1, 255)).astype(np.uint8)
+        snow, mix = (np.where(r > 0, np.rint(g[np.ix_(rows, cols)] * 255), 0).astype(np.uint8) for g in ptype)
+        img = Image.fromarray(np.stack([r, snow, mix], -1), "RGB")
+    buf = io.BytesIO(); img.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
 def ptype_grid(f):
     """(snow, mix) as 0/1 float grids per 0.25° cell; the rest is rain. Freezing rain or ice pellets, or snow together with
     rain, is mix."""
@@ -276,12 +303,16 @@ def main():
                                 empty += 1; continue
                             written += 1; bytes_out += len(png)
                             jobs.append(pool.submit(put, f"{PREFIX}/{run}/{layer}/{fh:03d}/{z}/{x}/{y}.png", png))
+                if layer in GRID_DECODE:
+                    png = grid_png(layer, grid, ptype)
+                    field_bytes += len(png)
+                    jobs.append(pool.submit(put, f"{PREFIX}/{run}/grid/{layer}/{fh:03d}.png", png))
             if "wind" in layers:
                 png = wind_field_png(fields[FIELDS["wind"][0]], fields[FIELDS["wind"][1]])
                 field_bytes += len(png)
                 jobs.append(pool.submit(put, f"{PREFIX}/{run}/windfield/{fh:03d}.png", png))
             for j in jobs: j.result()
-            print(f"  f{fh:03d} done · {written} tiles · {empty} empty skipped · {bytes_out / 1e6:.1f} MB · wind field {field_bytes / 1e3:.0f} kB · {time.time() - t0:.0f} s", flush=True)
+            print(f"  f{fh:03d} done · {written} tiles · {empty} empty skipped · {bytes_out / 1e6:.1f} MB · fields+grids {field_bytes / 1e3:.0f} kB · {time.time() - t0:.0f} s", flush=True)
 
     manifest = {
         "model": "NOAA GFS 0.25°", "attribution": "NOAA GFS", "run": run_t.isoformat().replace("+00:00", "Z"),
@@ -295,7 +326,9 @@ def main():
                        **({"missingTileMeans": "no rain",
                            "legendSnow": [[v, "#%02x%02x%02x%02x" % c] for v, c in RAMPS["snow"]],
                            "legendMix": [[v, "#%02x%02x%02x%02x" % c] for v, c in RAMPS["mix"]]} if l == "rain" else {}),
-                       **({"field": {"url": f"{PUBLIC}/{PREFIX}/{run}/windfield/{{fh}}.png", **FIELD}} if l == "wind" else {})}
+                       **({"field": {"url": f"{PUBLIC}/{PREFIX}/{run}/windfield/{{fh}}.png", **FIELD}} if l == "wind" else {}),
+                       **({"grid": {"url": f"{PUBLIC}/{PREFIX}/{run}/grid/{l}/{{fh}}.png", **GRID, "decode": GRID_DECODE[l]}}
+                          if l in GRID_DECODE else {})}
                    for l in layers},
         "tiles": written,
     }
@@ -315,7 +348,7 @@ def main():
                 for i in range(0, len(objs), 1000):
                     s3.delete_objects(Bucket=R2_BUCKET, Delete={"Objects": objs[i:i + 1000], "Quiet": True})
             print(f"  deleted old run {r}")
-    print(f"done: run {run} · {written} tiles · {bytes_out / 1e6:.1f} MB · wind field {field_bytes / 1e3:.0f} kB · {time.time() - t0:.0f} s")
+    print(f"done: run {run} · {written} tiles · {bytes_out / 1e6:.1f} MB · fields+grids {field_bytes / 1e3:.0f} kB · {time.time() - t0:.0f} s")
 
 
 if __name__ == "__main__":

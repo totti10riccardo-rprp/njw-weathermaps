@@ -15,6 +15,11 @@ Bucket `njw-maps` (its own; the GitHub key can write only there), public at http
 - **Zoom:** rain 0 … 4, wind and temperature 0 … 3 (`maxZoom` in the manifest); above that, over-zoom (scale the parent
   tile). The model grid is 0.25° (~28 km), so more zoom would add nothing.
 - **Rain:** a missing tile (404) means no rain anywhere in it (never written, to save writes): draw nothing.
+- **Data for the app to draw itself** (18 Oct 2026), one PNG per step beside the tiles, named in the manifest:
+  `layers.wind.field` (1°, 360 × 181, R = u, G = v), and `layers.temp.grid` / `layers.rain.grid`: 0.5°, 720 × 361,
+  x = lon -180 … 179.5, row 0 = 90° N, point samples of the 0.25° grid. Temperature grey, °C = byte / 2 - 64 (0.5 °C
+  steps). Rain RGB: R = 0 dry (under 0.1 mm/h), else mm/h = 10 ^ (R / 100) - 1 (within 3 %); G = snow share, B = mix share
+  of 255, rain the rest. Measured on the 17 Oct 18z run: ~77 kB (temperature) and ~65 kB (rain) per hour.
 - **Source:** NOAA GFS 0.25°, public domain, read from NOAA's open-data bucket on AWS. Credit "NOAA GFS".
 - **Refresh:** four runs a day (00, 06, 12, 18 UTC). Each is drawn when its last file lands (~3 h 40 min after the run
   hour), so the newest tiles are ~4 hours old at publication. Tile objects for one run never change (cached a day);
@@ -110,6 +115,10 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
   https://doi.org/10.1111/all.13092, and 2020, https://doi.org/10.1111/all.14111, as cited by the EEA's Climate-ADAPT page
   "CAMS ground level pollen forecast"). Below the season threshold is transparent, and an empty tile is not written.
   Colours are continuous between the legend's stops (`legendMode: "linear"`).
+- **Data for the app to draw itself** (18 Oct 2026): `layers.aqi.grid` and `layers.pollen.grid`, one grey PNG per hour on
+  the model's own grid (Europe 0.1°, world 0.4°; `width`, `height`, `lat0`, `lon0`, `dlat`, `dlon` in the manifest, row 0
+  north), 255 = no data. aqi: value = byte / 40, band = floor(byte / 40). pollen: level = byte / 80 (0 = at or below the
+  season threshold). The per-species pollen grids (`layers.pollen.grids`) stay as they are.
 - **Licence:** CAMS data licence (CC-BY 4.0 based), accepted on the ADS account 17 Oct 2026. The manifests' `attribution`
   must be shown on the map, visibly: "Contains modified Copernicus Atmosphere Monitoring Service information <year>.
   Neither the European Commission nor ECMWF is responsible for any use that may be made of the information it contains."

@@ -79,6 +79,23 @@ STEPPED = {"aqi": 5}   # layer: the top band (a pixel is floor(min(value, top)))
 FLOOR = {"pollen": 0.0}
 # pollen value grid: grey PNG on the model's own 0.1° grid, byte = round(log10(pollen/m³ + 1) × 50), 0 … 255
 POLLEN_GRID_SCALE = 50
+# the layers' value GRIDS, for the app to draw them itself (18 Oct 2026): one grey PNG per layer and hour on the model's own
+# grid (Europe 0.1°, world 0.4°), 255 = no data.
+#   aqi     byte = round(value × 40), 0 … 239: the band is floor(byte / 40) (0 = Good … 5 = Extremely poor)
+#   pollen  byte = 0 at or below the season threshold, else round(level × 80), 1 … 254 (level 1 = peak = 80)
+GRID_SCALE = {"aqi": 40, "pollen": 80}
+GRID_DECODE = {"aqi": "value = byte / 40 (band = floor(value); 0 Good … 5 Extremely poor); 255 = no data",
+               "pollen": "level = byte / 80 (0 = at or below the season threshold, 1 = peak); 255 = no data"}
+
+
+def value_grid_png(layer, v):
+    nan = np.isnan(v)
+    if layer == "aqi":
+        b = np.clip(np.rint(np.nan_to_num(v) * GRID_SCALE["aqi"]), 0, 239)   # 239: the top band stays 5
+    else:
+        b = np.where(np.nan_to_num(v, nan=-1) <= 0, 0, np.clip(np.rint(np.nan_to_num(v) * GRID_SCALE["pollen"]), 1, 254))
+    b = np.where(nan, 255, b).astype(np.uint8)
+    return grey_png(b)
 
 
 def attribution(year):
@@ -369,6 +386,8 @@ def main():
                             empty += 1; continue
                         written += 1; bytes_out += len(png)
                         jobs.append(pool.submit(put, f"{prefix}/{run}/{layer}/{fh:03d}/{z}/{x}/{y}.png", png))
+                png = value_grid_png(layer, grids[layer]); grid_bytes += len(png)
+                jobs.append(pool.submit(put, f"{prefix}/{run}/grid/{layer}/{fh:03d}.png", png))
             if region == "europe":
                 for s in POLLEN:
                     b = np.clip(np.rint(np.log10(conc[s] + 1) * POLLEN_GRID_SCALE), 0, 255).astype(np.uint8)
@@ -379,6 +398,11 @@ def main():
                   + " ".join(f"{l} max {v:.2f}" for l, v in peaks[fh].items()) + f" · {time.time() - t0:.0f} s", flush=True)
 
     def legend(l): return LEGENDS[l]
+    def value_grid(l):
+        return {"url": f"{PUBLIC}/{prefix}/{run}/grid/{l}/{{fh}}.png", "width": grid["ni"], "height": grid["nj"],
+                "lat0": round(grid["lat0"], 4), "lon0": round(grid["lon0"], 4), "dlat": round(grid["dlat"], 4),
+                "dlon": round(grid["dlon"], 4), "global": bool(grid["global"]),
+                "decode": GRID_DECODE[l] + "; row 0 = lat0 (north), column 0 = lon0"}
     manifest = {
         "model": cfg["model"], "source": cfg["dataset"], "attribution": attribution(run_t.year),
         "run": run_t.isoformat().replace("+00:00", "Z"),
@@ -390,6 +414,7 @@ def main():
                     "units": "European Air Quality Index (0 = Good … 6)", "legend": legend("aqi"), "legendMode": "step",
                     "bands": [{"from": i, "to": i + 1, "name": n} for i, n in enumerate(EAQI_NAMES)],
                     "limits_ugm3": EAQI, "standard": "EEA European Air Quality Index, revised bands (ETC HE Report 2024/17), hourly",
+                    "grid": value_grid("aqi"),
                     **({"missingTileMeans": "outside the European domain"} if region == "europe" else {})},
         },
         "tiles": written,
@@ -399,6 +424,7 @@ def main():
             "url": f"{PUBLIC}/{prefix}/{run}/pollen/{{fh}}/{{z}}/{{x}}/{{y}}.png", "minZoom": 0, "maxZoom": cfg["maxz"],
             "units": "pollen level of the highest species: 0 = season threshold, 1 = peak threshold (log scale)",
             "legend": legend("pollen"), "legendMode": "linear", "missingTileMeans": "below the pollen-season threshold, or outside the European domain",
+            "grid": value_grid("pollen"),
             "thresholds": {s: {"season": se, "peak": pk} for s, (se, pk) in POLLEN.items()},
             "standard": "EAACI pollen season and peak thresholds (Pfaar et al. 2017; 2020), pollen/m³",
             "grids": {"url": f"{PUBLIC}/{prefix}/{run}/pollengrid/{{species}}/{{fh}}.png", "species": list(POLLEN),
