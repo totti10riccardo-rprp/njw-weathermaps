@@ -8,6 +8,7 @@ the .idx), so a run costs ~60 MB of download, not the full 500 MB files.
   rain   PRATE:surface (instantaneous), mm/h; under 0.1 mm/h is transparent and an all-transparent tile is not written
   wind   UGRD/VGRD:10 m above ground, speed in m/s
   temp   TMP:2 m above ground, degrees C
+  cloud  TCDC:entire atmosphere (instantaneous), % — a data grid only, no tiles
 
 Tiles are 256 px Web Mercator (the {z}/{x}/{y} scheme MapKit's MKTileOverlay reads), bilinear from the 0.25 degree grid.
 Temperature and wind are smooth fields and stop at zoom 3 (the app over-zooms); rain stops at zoom 4.
@@ -41,7 +42,9 @@ FIELDS = {
     "temp": [":TMP:2 m above ground:"],
     "wind": [":UGRD:10 m above ground:", ":VGRD:10 m above ground:"],
     "rain": [":PRATE:surface:"],
+    "cloud": [":TCDC:entire atmosphere:"],   # grid only (no tiles): total cloud cover, %
 }
+GRID_ONLY = {"cloud"}
 
 # ── Colour ramps: (value, (r, g, b, a)), linear between stops, clamped at the ends ─────────────────────────────────────
 # The palettes (18 Oct 2026), exact stops shared with the app: smooth, slightly transparent (the app draws the tiles at
@@ -138,6 +141,8 @@ def to_value(layer, f):
         return f[FIELDS["temp"][0]] - 273.15
     if layer == "wind":
         return np.hypot(f[FIELDS["wind"][0]], f[FIELDS["wind"][1]])
+    if layer == "cloud":
+        return f[FIELDS["cloud"][0]]
     return f[FIELDS["rain"][0]] * 3600.0  # kg m-2 s-1 → mm/h
 
 
@@ -179,10 +184,12 @@ def wind_field_png(u, v):
 #   temp  grey: byte = round((°C + 64) × 2), clamped; °C = byte / 2 - 64 (0.5 °C steps, -64 … +63.5)
 #   rain  RGB: R = 0 under 0.1 mm/h (dry), else round(log10(mm/h + 1) × 100), at least 1; mm/h = 10 ^ (R / 100) - 1
 #         G = the snow share, B = the mix share (0 … 255; rain = the rest), both 0 where R is 0
+#   cloud grey: byte = round(% × 2.5), total cloud cover of the whole column; % = byte / 2.5 (grid only, no tiles)
 GRID = {"width": 720, "height": 361, "lon0": -180, "lat0": 90, "step": 0.5}
 GRID_DECODE = {"temp": "grey PNG: °C = byte / 2 - 64",
                "rain": "RGB PNG: R = 0 dry (under 0.1 mm/h), else mm/h = 10 ^ (R / 100) - 1; G = snow share, B = mix share "
-                       "(of 255; rain is the rest)"}
+                       "(of 255; rain is the rest)",
+               "cloud": "grey PNG: total cloud cover % = byte / 2.5"}
 
 
 def grid_png(layer, value, ptype=None):
@@ -191,6 +198,8 @@ def grid_png(layer, value, ptype=None):
     v = value[np.ix_(rows, cols)]
     if layer == "temp":
         img = Image.fromarray(np.clip(np.rint((v + 64) * 2), 0, 255).astype(np.uint8), "L")
+    elif layer == "cloud":
+        img = Image.fromarray(np.clip(np.rint(v * 2.5), 0, 250).astype(np.uint8), "L")
     else:
         r = np.where(v < FLOOR["rain"], 0, np.clip(np.rint(np.log10(np.maximum(v, 0) + 1) * 100), 1, 255)).astype(np.uint8)
         snow, mix = (np.where(r > 0, np.rint(g[np.ix_(rows, cols)] * 255), 0).astype(np.uint8) for g in ptype)
@@ -254,7 +263,7 @@ def r2():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run"); ap.add_argument("--out"); ap.add_argument("--upload", action="store_true")
-    ap.add_argument("--steps"); ap.add_argument("--layers", default="rain,wind,temp")
+    ap.add_argument("--steps"); ap.add_argument("--layers", default="rain,wind,temp,cloud")
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
     steps = [int(s) for s in a.steps.split(",")] if a.steps else STEPS
@@ -294,7 +303,7 @@ def main():
             jobs = []
             for layer in layers:
                 grid = to_value(layer, fields)
-                for z in range(MAXZ[layer] + 1):
+                for z in (range(MAXZ[layer] + 1) if layer not in GRID_ONLY else ()):
                     for x in range(1 << z):
                         for y in range(1 << z):
                             png = (tile_png(layer, grid, z, x, y, tables[layer], ptype, kinds) if layer == "rain"
@@ -329,7 +338,10 @@ def main():
                        **({"field": {"url": f"{PUBLIC}/{PREFIX}/{run}/windfield/{{fh}}.png", **FIELD}} if l == "wind" else {}),
                        **({"grid": {"url": f"{PUBLIC}/{PREFIX}/{run}/grid/{l}/{{fh}}.png", **GRID, "decode": GRID_DECODE[l]}}
                           if l in GRID_DECODE else {})}
-                   for l in layers},
+                   for l in layers if l not in GRID_ONLY},
+        # data with no tiles, for the app to draw itself (an entry here never appears under layers)
+        "grids": {l: {"units": {"cloud": "%"}[l], "url": f"{PUBLIC}/{PREFIX}/{run}/grid/{l}/{{fh}}.png", **GRID,
+                      "decode": GRID_DECODE[l]} for l in layers if l in GRID_ONLY},
         "tiles": written,
     }
     body = json.dumps(manifest, indent=1, ensure_ascii=False).encode()

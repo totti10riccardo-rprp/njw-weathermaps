@@ -20,6 +20,8 @@ Bucket `njw-maps` (its own; the GitHub key can write only there), public at http
   x = lon -180 … 179.5, row 0 = 90° N, point samples of the 0.25° grid. Temperature grey, °C = byte / 2 - 64 (0.5 °C
   steps). Rain RGB: R = 0 dry (under 0.1 mm/h), else mm/h = 10 ^ (R / 100) - 1 (within 3 %); G = snow share, B = mix share
   of 255, rain the rest. Measured on the 17 Oct 18z run: ~77 kB (temperature) and ~65 kB (rain) per hour.
+  Cloud has a grid and no tiles: top-level `grids.cloud` (same 0.5° geometry), total cloud cover % = byte / 2.5, ~130 kB
+  per hour. A layer under `grids` never appears under `layers`.
 - **Source:** NOAA GFS 0.25°, public domain, read from NOAA's open-data bucket on AWS. Credit "NOAA GFS".
 - **Refresh:** four runs a day (00, 06, 12, 18 UTC). Each is drawn when its last file lands (~3 h 40 min after the run
   hour), so the newest tiles are ~4 hours old at publication. Tile objects for one run never change (cached a day);
