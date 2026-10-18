@@ -1,5 +1,6 @@
 # Austria's precipitation "radar" layer (GeoSphere Austria's INCA nowcast, CC BY 4.0) drawn into map tiles on Cloudflare R2
 # (bucket njw-maps, public at https://maps.notjustweather.com/maps/radar-at/frames.json). render_radar_at.py does the work.
+# Czechia's (CHMI/ČHMÚ radar composite, CC BY 4.0) rides in the same job: render_radar_cz.py -> .../maps/radar-cz/frames.json.
 # Every 15 minutes, just after GeoSphere publishes (its runs are at :00/:15/:30/:45, the frame is valid 15 min later). GitHub's
 # schedule can drift or skip under load; the Cloudflare cron worker (cron-worker/) can take over dispatching later.
 # Security: secrets are R2_ENDPOINT and the njw-maps-only storage key. Fork runs never get secrets.
@@ -31,3 +32,10 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: python render_radar_at.py --upload
+      - name: Czechia
+        if: always()
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python render_radar_cz.py --upload

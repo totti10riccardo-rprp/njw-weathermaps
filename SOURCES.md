@@ -98,6 +98,18 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
   (https://www.smhi.se/data/om-smhis-data/villkor-for-anvandning); DMI "DMI's Open Data are distributed under the Creative
   Commons License CC BY 4.0" (https://www.dmi.dk/friedata/dokumentation/terms-of-use). Credits: "SMHI (CC BY 4.0), processed",
   "DMI (CC BY 4.0), processed". Writes ~250k (SE) + ~66k (DK) a month (~$1.4).
+- **Czechia** (ours, on R2, same manifest shape): `.../maps/radar-cz/frames.json` (CHMI/ČHMÚ composite PseudoCAPPI 2 km
+  DBZH, ODIM HDF5, 1.56 km spherical Mercator, radars Brdy-Praha and Skalky, from
+  https://opendata.chmi.cz/meteorology/weather/radar/composite/pseudocappi2km/hdf5/), Marshall-Palmer, the same clutter
+  filter and palette, z5-z9 over Czechia, last 2 h; a step in `.github/workflows/radar-at.yml`. Position checked against
+  DWD's radar on 17 Oct 2026 15:00 UTC: 98.5% of the Czech rain pixels are rain in DWD too, best fit within one source pixel.
+  Licence CC BY 4.0: "Otevřená data ČHMÚ můžete využívat bezplatně při respektování licence Creative Commons BY 4.0"
+  (https://www.chmi.cz/-/jak-mohu-pou%C5%BE%C3%ADvat-otev%C5%99en%C3%A1-data-%C4%8Dhm%C3%BA-), and the national catalogue's
+  "Radarová data ČHMÚ" record says CC BY 4.0. Credit: "ČHMÚ (CC BY 4.0), processed". Up to 135 tiles a frame (33-80 on rainy
+  frames, ~0.5-0.9 MB); ~90k writes a month typical (~$0.40), 390k if it rained everywhere all month (~$1.75).
+- **Norway** (not added, 18 Oct 2026): api.met.no radar 2.0 says "There is no usage restrictions on any of the radar images",
+  but it serves only PNG/GIF pictures in a Lambert conformal projection whose parameters and extent are not published, so
+  they cannot be placed on the map without guessing.
 
 ## 4. Hurricanes and tropical storms (NOAA NHC, straight from NOAA)
 
