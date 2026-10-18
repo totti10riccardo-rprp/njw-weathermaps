@@ -82,6 +82,14 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
 - ⚠️ Direct requests send the viewed area and the phone's IP address to NOAA, DWD, ECCC, KNMI and NASA. A Cloudflare proxy would hide that
   (not built; free up to 100,000 requests a day).
 
+- **Austria** (ours, on R2; GeoSphere Austria's INCA nowcast `nowcast-v1-15min-1km`, parameter `rr`, a radar + gauge + model
+  blend at 1 km, every 15 min, ~5-20 min behind): manifest `https://maps.notjustweather.com/maps/radar-at/frames.json`
+  (`frames` and `keys` oldest first for the last 2 h, `url` = `.../maps/radar-at/{key}/{z}/{x}/{y}.png`, z5-z9, `bounds`
+  [9.45, 46.3, 17.25, 49.15], the GFS rain palette and legend, a missing tile = no rain). Drawn by `render_radar_at.py` in
+  `.github/workflows/radar-at.yml` every 15 min. Licence CC BY 4.0: "All data that is publicly accessible without
+  authentication is licensed under Creative Commons Attribution 4.0" (https://dataset.api.hub.geosphere.at/v1/docs).
+  Credit: "GeoSphere Austria". ~40 tiles and ~100 kB per frame; ~120k storage writes a month (~$0.55).
+
 ## 4. Hurricanes and tropical storms (NOAA NHC, straight from NOAA)
 
 - Forecast cone, track, points and coastal watches/warnings for every active storm in the Atlantic, East and Central
