@@ -13,6 +13,7 @@ The client sends only `bbox` (EPSG:3857 metres `minX,minY,maxX,maxY`) plus `widt
 | `/gov/eccc-radar` | geo.weather.gc.ca/geomet, RADAR_1KM_RRAI | 360 s | SOURCES.md: every 6 min |
 | `/gov/knmi-radar` | geoservices.knmi.nl/wms?dataset=RADAR, RAD_NL25_PCP_CM | 300 s | SOURCES.md: every 5 min |
 | `/gov/fmi-radar` | openwms.fmi.fi/geoserver/wms, Radar:suomi_dbz_eureffin (Finland, dBZ) | 300 s | SOURCES.md s3: every 5 min |
+| `/gov/rmi-radar` | opendata.meteo.be/geoserver/wms, radar:belgian_rainfall_composite (Belgium, rain rate) | 300 s | SOURCES.md s3: every 5 min |
 | `/gov/noaa-nhc` | mapservices.weather.noaa.gov/.../NHC_tropical_weather/MapServer/export (the layers list from SOURCES.md s4) | 600 s | advisories every 3-6 h; 10 min is a safe margin (chosen, not a documented interval) |
 | `/gov/noaa-airquality/{pm25,ozone}` | mapservices.weather.noaa.gov/raster/.../ndgd_apm25_hr01 and ndgd_ozone_8hr_avg_time /ImageServer/exportImage | 1800 s | two model runs a day, hourly maps (SOURCES.md s5) |
 | `/gov/nasa-goes-east/{z}/{y}/{x}.png`, `/gov/nasa-goes-west/{z}/{y}/{x}.png` | gibs.earthdata.nasa.gov GOES-East/West ABI Band 13 infrared, `default` (newest), Level6 | 600 s | every 10 min (SOURCES.md s2); zoom 0-6, row before column, no query string |
