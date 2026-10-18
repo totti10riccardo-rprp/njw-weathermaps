@@ -1,0 +1,11 @@
+# Government map layers behind our own server, so only Cloudflare (never the phone) talks to NOAA, DWD, ECCC, KNMI.
+# Deploy: (cd gov-proxy-worker && wrangler deploy). Free plan: no bindings, no secrets.
+# ONE route only. It must never be broader than /gov/*, or it would shadow /maps/* (the R2 tiles).
+name = "njw-gov-proxy"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+workers_dev = false
+
+routes = [
+  { pattern = "maps.notjustweather.com/gov/*", zone_name = "notjustweather.com" }
+]
