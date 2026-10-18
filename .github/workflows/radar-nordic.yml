@@ -1,0 +1,40 @@
+# Sweden's (SMHI) and Denmark's (DMI) radar composites, drawn by us into map tiles on Cloudflare R2 (bucket njw-maps, public
+# at https://maps.notjustweather.com/maps/radar-se/frames.json and .../radar-dk/frames.json). render_radar_se.py and
+# render_radar_dk.py do the work: reflectivity -> rain rate (Marshall-Palmer), clutter specks removed, the GFS rain palette.
+# Every 15 minutes (the frames on :00/:15/:30/:45; the sources publish every 5 min, a few minutes behind). Both CC BY 4.0.
+# Security: secrets are R2_ENDPOINT and the njw-maps-only storage key. Fork runs never get secrets.
+name: radar-nordic
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: radar-nordic
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-radar.txt
+      - run: pip install -r requirements-radar.txt
+      - name: Sweden
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python render_radar_se.py --upload
+      - name: Denmark
+        if: always()
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python render_radar_dk.py --upload

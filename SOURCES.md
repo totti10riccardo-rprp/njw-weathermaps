@@ -89,6 +89,15 @@ WMS: the app asks per tile with the tile's box in EPSG:3857 metres (`minX,minY,m
   `.github/workflows/radar-at.yml` every 15 min. Licence CC BY 4.0: "All data that is publicly accessible without
   authentication is licensed under Creative Commons Attribution 4.0" (https://dataset.api.hub.geosphere.at/v1/docs).
   Credit: "GeoSphere Austria". ~40 tiles and ~100 kB per frame; ~120k storage writes a month (~$0.55).
+- **Sweden** and **Denmark** (ours, on R2, same manifest shape as Austria): `.../maps/radar-se/frames.json` (SMHI composite
+  DBZH, ODIM HDF5, 2 km, stereographic on Bessel) and `.../maps/radar-dk/frames.json` (DMI composite DBZH, 500 m, oblique
+  stereographic on WGS84), reflectivity -> rain rate by Marshall-Palmer (Z = 200 R^1.6), isolated clutter specks/streaks
+  removed (a rain pixel survives only inside a 3x3 block of rain), the GFS rain palette, frames on the quarter hours, last
+  2 h. `.github/workflows/radar-nordic.yml` every 15 min. Licences: SMHI "Creative commons Erkännande 4.0 SE ... även för
+  kommersiella ändamål ... ange SMHI som källa och även ange om du har ändrat i licensmaterialet"
+  (https://www.smhi.se/data/om-smhis-data/villkor-for-anvandning); DMI "DMI's Open Data are distributed under the Creative
+  Commons License CC BY 4.0" (https://www.dmi.dk/friedata/dokumentation/terms-of-use). Credits: "SMHI (CC BY 4.0), processed",
+  "DMI (CC BY 4.0), processed". Writes ~250k (SE) + ~66k (DK) a month (~$1.4).
 
 ## 4. Hurricanes and tropical storms (NOAA NHC, straight from NOAA)
 
