@@ -22,7 +22,7 @@ Bucket `njw-maps` (its own; the GitHub key can write only there), public at http
   of 255, rain the rest. Measured on the 17 Oct 18z run: ~77 kB (temperature) and ~65 kB (rain) per hour.
   Cloud has a grid and no tiles: top-level `grids.cloud` (same 0.5° geometry), total cloud cover % = byte / 2.5, ~130 kB
   per hour. A layer under `grids` never appears under `layers`.
-- **Source:** NOAA GFS 0.25°, public domain, read from NOAA's open-data bucket on AWS. Credit "NOAA GFS".
+- **Source:** NOAA GFS 0.25°, public domain, read from NOAA's open-data bucket on AWS. Credit "NOAA GFS, processed" (21 Oct 2026: NOAA asks that modified data not be presented as original, as the radar layers already say "processed").
 - **Refresh:** four runs a day (00, 06, 12, 18 UTC). Each is drawn when its last file lands (~3 h 40 min after the run
   hour), so the newest tiles are ~4 hours old at publication. Tile objects for one run never change (cached a day);
   the manifest moves to the new run when it is fully uploaded. The current run and the one before stay on R2.

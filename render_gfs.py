@@ -324,7 +324,7 @@ def main():
             print(f"  f{fh:03d} done · {written} tiles · {empty} empty skipped · {bytes_out / 1e6:.1f} MB · fields+grids {field_bytes / 1e3:.0f} kB · {time.time() - t0:.0f} s", flush=True)
 
     manifest = {
-        "model": "NOAA GFS 0.25°", "attribution": "NOAA GFS", "run": run_t.isoformat().replace("+00:00", "Z"),
+        "model": "NOAA GFS 0.25°", "attribution": "NOAA GFS, processed", "run": run_t.isoformat().replace("+00:00", "Z"),
         "generated": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         # `key` is what fills {fh} in a layer's url: the tile folders are three digits ("003"), `fh` is the plain number (3).
         "steps": [{"fh": fh, "key": f"{fh:03d}", "valid": (run_t + dt.timedelta(hours=fh)).isoformat().replace("+00:00", "Z")}
